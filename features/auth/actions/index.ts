@@ -1,3 +1,6 @@
+
+
+"use server"
 import SignInPage from "@/app/(auth)/sign-in/page"
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
@@ -33,7 +36,7 @@ export async function getServerSession() {
 
 
 export async function requiresAuth(redirectTo = SIGN_IN_PATH) {
-    const session = getServerSession()
+    const session = await getServerSession()
 
     if (!session) {
         redirect(redirectTo)

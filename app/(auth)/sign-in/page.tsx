@@ -14,7 +14,8 @@ import {
     FieldGroup,
     FieldSet,
 } from "@/components/ui/field";
-// import { GithubSignInForm } from '@/features/auth/components/github-sign-in-form';
+import { GithubSignInForm } from '@/features/auth/components/github-sign-in-form';
+import { noAuthRequired } from "@/features/auth/actions";
 
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ type SignInPageProps = {
 
 
 const SignInPage = async ({ searchParams }: SignInPageProps) => {
+    await noAuthRequired();
     const { callbackUrl } = await searchParams;
     return (
         <Card className="shadow-sm border-border/80">
