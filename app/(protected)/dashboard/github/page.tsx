@@ -22,7 +22,7 @@ const DashBoardGitHubPage = async () => {
     return (
         <DashboardHeader
             title='github app'
-            description="Install or disconnect the reviewer app on your GitHub account."
+            description="Install or disconnect the reviewer app on your GitHub account." />
     )
 }
 
