@@ -1,7 +1,6 @@
 "use server"
 
 import { getServerSession } from "@/features/auth/actions"
-
 import { deleteInstallation } from "../server/installation";
 import { redirect } from "next/navigation";
 import { DASHBOARD_ROUTES } from "@/features/dashboard/lib/routes";
