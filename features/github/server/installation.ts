@@ -1,14 +1,11 @@
+import { getServerSession } from "@/features/auth/actions";
+import { DASHBOARD_ROUTES } from "@/features/dashboard/lib/routes";
 import type { GithubInstallationStatus } from "@/features/dashboard/lib/types";
-import { getGithubApp } from "../utils/github-app";
-import { prisma } from "@/lib/db"
+import { getGithubApp } from "@/features/github/utils/github-app";
+import { prisma } from "@/lib/db";
+import { redirect } from "next/navigation";
 
 
-//helper buildDisconnected()
-function buildDisconnectedStatus(): GithubInstallationStatus {
-    return { connected: false, accountLogin: null, installedAt: null }
-}
-
-//helper getAccountLogin 
 function getAccountLogin(
     account: { login?: string; slug?: string } | null | undefined
 ): string | null {
@@ -26,31 +23,37 @@ function getAccountLogin(
 
     return null;
 }
+function buildDisconnectedStatus(): GithubInstallationStatus {
+    return { connected: false, accountLogin: null, installedAt: null };
+}
 
 
-export async function getInstalllationStatus(userId: string) {
-    const installationExists = await prisma.githubInstallation.findUnique({
-        where: { userId }
-    })
+export async function getInstallationStatus(userId: string) {
+    const installation = await prisma.githubInstallation.findUnique({
+        where: {
+            userId
+        }
+    });
 
-    if (!installationExists) {
-        return buildDisconnectedStatus();
+    if (!installation) {
+        return buildDisconnectedStatus()
     }
 
     return {
         connected: true,
-        accountLogin: installationExists.accountLogin,
-        isInstalledAt: installationExists.createdAt.toISOString(),
+        accountLogin: installation.accountLogin,
+        installedAt: installation.createdAt.toISOString()
     }
 }
 
+
 export async function saveInstallation(userId: string, installationId: number) {
-    const app = getGithubApp()
+    const app = getGithubApp();
 
     const { data } = await app.octokit.request(
         "GET /app/installations/{installation_id}",
         { installation_id: installationId }
-    );
+    )
 
     const accountLogin = getAccountLogin(data.account);
 
@@ -67,8 +70,12 @@ export async function saveInstallation(userId: string, installationId: number) {
             accountLogin,
             accountType: data.target_type ?? null,
         }
-    });
+    })
+}
 
+
+export async function deleteInstallation(userId: string) {
+    await prisma.githubInstallation.delete({ where: { userId } });
 }
 
 export async function getUserIdByInstallationId(installationId: number) {
@@ -97,6 +104,3 @@ export async function getUserInstallationId(userId: string) {
     return installation.installationId;
 }
 
-export async function deleteInstallation(userId: string) {
-    await prisma.githubInstallation.delete({ where: { userId } });
-}
