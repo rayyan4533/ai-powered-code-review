@@ -18,16 +18,20 @@ model Test {
 }
 
 model User {
-  id                 String              @id
-  name               String
-  email              String
-  emailVerified      Boolean             @default(false)
-  image              String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  sessions           Session[]
-  accounts           Account[]
-  githubInstallation GithubInstallation?
+  id                     String              @id
+  name                   String
+  email                  String
+  emailVerified          Boolean             @default(false)
+  image                  String?
+  plan                   String              @default("free") // free | pro
+  razorpaySubscriptionId String?
+  subscriptionStatus     String? // active | canceled | trialing
+  subscriptionRenewsAt   DateTime?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  sessions               Session[]
+  accounts               Account[]
+  githubInstallation     GithubInstallation?
 
   @@unique([email])
   @@map("user")
@@ -65,6 +69,21 @@ model PullRequest {
   @@map("pull_request")
 }
 
+model RepoSync {
+  id             String    @id @default(cuid())
+  installationId Int
+  repoFullName   String
+  branch         String
+  status         String    @default("pending") // pending | syncing | synced | failed
+  chunkCount     Int       @default(0)
+  syncedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([repoFullName])
+  @@map("repo_sync")
+}
+
 model Session {
   id        String   @id
   expiresAt DateTime
@@ -96,10 +115,8 @@ model Account {
   password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  issuer                String?
 
-  issuer String
-
-  @@unique([issuer, accountId], map: "account_issuer_accountId_uidx")
   @@index([userId])
   @@map("account")
 }
