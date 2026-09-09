@@ -24,3 +24,21 @@ export async function cancelSubscription() {
 
     await cancelProSubscription(session.user.id);
 }
+
+export async function confirmProSubscription(data: {
+    razorpay_payment_id: string;
+    razorpay_subscription_id: string;
+    razorpay_signature: string;
+}) {
+    const { verifyAndActivateProSubscription } = await import("@/features/billing/server/subscription");
+    const session = await getServerSession();
+
+    if (!session) {
+        redirect("/sign-in");
+    }
+
+    return verifyAndActivateProSubscription({
+        userId: session.user.id,
+        ...data,
+    });
+}

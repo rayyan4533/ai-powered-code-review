@@ -97,3 +97,48 @@ export async function cancelProSubscription(userId: string) {
         data: { subscriptionStatus: "canceled" },
     });
 }
+
+export async function verifyAndActivateProSubscription({
+    userId,
+    razorpay_payment_id,
+    razorpay_subscription_id,
+    razorpay_signature,
+}: {
+    userId: string;
+    razorpay_payment_id: string;
+    razorpay_subscription_id: string;
+    razorpay_signature: string;
+}) {
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+        throw new Error("Missing RAZORPAY_KEY_SECRET in environment");
+    }
+
+    const { createHmac } = await import("crypto");
+    const expectedSignature = createHmac("sha256", secret)
+        .update(`${razorpay_payment_id}|${razorpay_subscription_id}`)
+        .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+        throw new Error("Invalid Razorpay payment signature");
+    }
+
+    const razorpay = getRazorpay();
+    const sub = await razorpay.subscriptions.fetch(razorpay_subscription_id);
+
+    const renewsAt = sub.current_end
+        ? new Date(sub.current_end * 1000)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await prisma.user.update({
+        where: { id: userId },
+        data: {
+            plan: "pro",
+            subscriptionStatus: "active",
+            razorpaySubscriptionId: razorpay_subscription_id,
+            subscriptionRenewsAt: renewsAt,
+        },
+    });
+
+    return { success: true };
+}
