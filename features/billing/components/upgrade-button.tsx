@@ -71,7 +71,7 @@ export function UpgradeButton() {
             const checkout = new window.Razorpay({
                 key,
                 subscription_id: subscriptionId,
-                name: "Chai Code Reviewer",
+                name: "RayCode Reviewer",
                 description: "Pro plan — unlimited AI reviews",
                 handler: async (response: {
                     razorpay_payment_id: string;

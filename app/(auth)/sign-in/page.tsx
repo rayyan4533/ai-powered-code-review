@@ -20,7 +20,7 @@ import { noAuthRequired } from "@/features/auth/actions";
 
 export const metadata: Metadata = {
     title: "Sign in",
-    description: "Sign in to Chai AI Code Reviewer with your GitHub account.",
+    description: "Sign in to RayCode AI Reviewer with your GitHub account.",
 };
 
 type SignInPageProps = {
@@ -37,7 +37,7 @@ const SignInPage = async ({ searchParams }: SignInPageProps) => {
                 <div className="flex justify-center mb-6 pt-2">
                     <Image
                         src="/logo2.jpg"
-                        alt="Chai AI Code Reviewer"
+                        alt="RayCode AI Reviewer"
                         width={172}
                         height={172}
                         priority
