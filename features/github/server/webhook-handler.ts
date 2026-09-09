@@ -1,22 +1,27 @@
+import { inngest } from "@/features/inngest/client";
+import { savePullRequest } from "@/features/reviews/server/save-pull-request";
 import { getGithubApp } from "../utils/github-app";
+import { getUserIdByInstallationId } from "./installation";
+import { canUserReview } from "@/features/billing/server/usage";
+import { prisma } from "@/lib/db";
 
 
-
+const REVIEWABLE_ACTIONS = ["opened", "synchronize", "reopened"];
 
 export type PullRequestWebhookPayload = {
+    /** Webhook action, e.g. `opened`, `synchronize`, `reopened` */
     action: string;
     /** GitHub App installation that received the event */
-    installation: { id: number }; //octokit to know which account permission to use
+    installation: { id: number };
     repository: { full_name: string };
     pull_request: {
         number: number;
         title: string;
         user: { login: string } | null;
-        head: { sha: string }; //latest git commit hash on pr branch
-        base: { ref: string }; //The target branch into which changes are being merged (e.g., "main"
+        head: { sha: string };
+        base: { ref: string };
     };
-}
-
+};
 
 async function isSignatureValid(payload: string, signature: string | null) {
     if (!signature) {
@@ -24,21 +29,14 @@ async function isSignatureValid(payload: string, signature: string | null) {
     }
 
     const app = getGithubApp();
-
-    return app.webhooks.verify(payload, signature)
+    // Octokit wraps GitHub's webhook crypto — rejects forged payloads.
+    return app.webhooks.verify(payload, signature);
 }
 
-/**Reads the raw string payload and the x-hub-signature-256 header.
- *  It computes an HMAC-SHA256 hash using GITHUB_WEBHOOK_SECRET 
- * and checks if it matches GitHub's signature.  Why we are coding this 
- * (Preventing Forged Requests): Anyone on the internet can send a POST request to [https://your-domain.com/api/github/webhook](https://your-domain.com/api/github/webhook). Without cryptographic verification, an attacker could trigger infinite AI review jobs, drain your token quota, or inject fake reviews. */
 
 
-const REVIEWABLE_ACTIONS = ["opened", "synchronize", "reopened"];
-
-
-export async function handleGithubWebHook(request: Request) {
-    const payload = await request.text()
+export async function handleGithubWebhook(request: Request) {
+    const payload = await request.text();
     const signature = request.headers.get("x-hub-signature-256");
     const eventName = request.headers.get("x-github-event");
 
@@ -49,14 +47,40 @@ export async function handleGithubWebHook(request: Request) {
     }
 
     if (eventName !== "pull_request") {
-        return Response.json({ received: "true,but not pr action" });
+        return Response.json({ received: true });
     }
+
     const event = JSON.parse(payload) as PullRequestWebhookPayload;
+
+    console.log("event", event);
+
     if (!REVIEWABLE_ACTIONS.includes(event.action)) {
         return Response.json({ received: true });
     }
 
-    // const pullRequest = await savePullRequest(event);
+    const pullRequest = await savePullRequest(event);
+
+    const userId = await getUserIdByInstallationId(event.installation.id);
+
+    if (userId) {
+        const allowed = await canUserReview(userId);
+        if (!allowed) {
+            await prisma.pullRequest.update({
+                where: {
+                    id: pullRequest.id
+                },
+                data: {
+                    status: "rate_limited"
+                }
+            });
+            return Response.json({ received: true, rateLimited: true });
+        }
+    }
+
+    await inngest.send({
+        name: "github/pr.received",
+        data: { pullRequestId: pullRequest.id },
+    });
 
     return Response.json({ received: true });
 }
